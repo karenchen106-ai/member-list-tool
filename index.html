@@ -1,0 +1,435 @@
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>會員最新加入名單產生器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --ink:#1c1917;
+    --paper:#faf7f2;
+    --card:#ffffff;
+    --line:#e8e1d6;
+    --red:#b3272d;
+    --red-dark:#8c1f24;
+    --gold:#c8a765;
+    --muted:#7a746a;
+    --ok:#2f6f4e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, #fbeceb 0%, transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    padding:32px 20px 64px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+
+  header{margin-bottom:28px;}
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:.18em;
+    color:var(--red);
+    font-weight:700;
+    text-transform:uppercase;
+  }
+  h1{
+    font-size:26px;
+    margin:6px 0 8px;
+    font-weight:900;
+    letter-spacing:.02em;
+  }
+  .sub{color:var(--muted);font-size:14px;line-height:1.7;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:24px;
+    margin-bottom:20px;
+    box-shadow:0 1px 2px rgba(28,25,23,.03);
+  }
+  .card h2{
+    font-size:14px;
+    margin:0 0 16px;
+    font-weight:800;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .card h2 .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;border-radius:50%;
+    background:var(--red);color:#fff;font-size:11px;font-weight:800;
+    flex-shrink:0;
+  }
+
+  #dropzone{
+    border:1.5px dashed var(--line);
+    border-radius:10px;
+    padding:28px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    background:#fffdfa;
+  }
+  #dropzone:hover, #dropzone.drag{
+    border-color:var(--red);
+    background:#fff6f5;
+  }
+  #dropzone .icon{font-size:26px;margin-bottom:8px;}
+  #dropzone .main-txt{font-size:14px;font-weight:700;}
+  #dropzone .sub-txt{font-size:12px;color:var(--muted);margin-top:4px;}
+  #fileInput{display:none;}
+  #fileInfo{
+    margin-top:12px;font-size:13px;color:var(--ok);font-weight:700;
+    display:none;
+  }
+
+  .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;}
+  .field{flex:1;min-width:160px;}
+  label.field-label{
+    display:block;font-size:12px;font-weight:700;color:var(--muted);
+    margin-bottom:6px;
+  }
+  input[type=number]{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+  }
+  input[type=number]:focus{outline:2px solid var(--red);outline-offset:1px;}
+
+  .toggle-row{
+    display:flex;align-items:center;gap:10px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    margin-top:14px;
+    background:#fffdfa;
+  }
+  .toggle-row input{width:16px;height:16px;accent-color:var(--red);}
+  .toggle-row .t-label{font-size:13px;font-weight:700;}
+  .toggle-row .t-desc{font-size:12px;color:var(--muted);margin-top:2px;}
+
+  button.primary{
+    width:100%;
+    padding:14px;
+    background:var(--red);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:800;
+    cursor:pointer;
+    letter-spacing:.02em;
+    transition:background .15s, transform .05s;
+  }
+  button.primary:hover{background:var(--red-dark);}
+  button.primary:active{transform:scale(.99);}
+  button.primary:disabled{background:#d8d2c8;cursor:not-allowed;}
+
+  #status{font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;}
+  #status.err{color:var(--red);font-weight:700;}
+
+  #resultCard{display:none;}
+  .result-head{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+    margin-bottom:14px;
+  }
+  .count-pill{
+    background:#fbeceb;color:var(--red-dark);
+    font-size:13px;font-weight:800;
+    padding:5px 12px;border-radius:999px;
+  }
+  .actions{display:flex;gap:8px;}
+  .actions button{
+    padding:8px 14px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background:#fff;
+    font-size:12.5px;
+    font-weight:700;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .actions button:hover{border-color:var(--red);color:var(--red);}
+  textarea{
+    width:100%;
+    min-height:260px;
+    padding:14px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    font-family:"SF Mono",Consolas,monospace;
+    font-size:13px;
+    line-height:1.9;
+    resize:vertical;
+    background:#fffdfa;
+  }
+  .empty-note{
+    font-size:13px;color:var(--muted);
+    background:#fff8ee;border:1px solid #f0e2c4;
+    padding:12px 14px;border-radius:8px;
+  }
+  footer{
+    text-align:center;font-size:12px;color:var(--muted);margin-top:28px;
+  }
+
+  @media (max-width: 480px){
+    body{padding:20px 12px 48px;}
+    .card{padding:18px;border-radius:12px;}
+    h1{font-size:22px;}
+    #dropzone{padding:22px 12px;}
+    .actions{flex-wrap:wrap;}
+    .actions button{flex:1;min-width:120px;}
+    .result-head{flex-direction:column;align-items:flex-start;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">會員客服中心 · 內部工具</div>
+    <h1>會員最新加入名單產生器</h1>
+    <div class="sub">上傳「你的頻道會員」CSV，設定天數，就能自動整理出可直接貼上的感謝名單。</div>
+  </header>
+
+  <div class="card">
+    <h2><span class="num">1</span>上傳 CSV 檔案</h2>
+    <div id="dropzone">
+      <div class="icon">📄</div>
+      <div class="main-txt">拖曳檔案到這裡，或點擊選擇檔案</div>
+      <div class="sub-txt">支援 YouTube 頻道會員匯出的 CSV 檔</div>
+    </div>
+    <input type="file" id="fileInput" accept=".csv">
+    <div id="fileInfo"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span>設定條件</h2>
+    <div class="row">
+      <div class="field">
+        <label class="field-label">最近幾天內加入的會員</label>
+        <input type="number" id="daysInput" value="3" min="1" max="30">
+      </div>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="includeRejoin" checked>
+      <div>
+        <div class="t-label">包含「已重新加入」的會員</div>
+        <div class="t-desc">取消勾選則只列出全新加入（已加入）的會員，不含重新加入者</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span>產生名單</h2>
+    <button class="primary" id="genBtn" disabled>請先上傳 CSV 檔案</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <div class="result-head">
+      <h2 style="margin:0;"><span class="num">✓</span>結果</h2>
+      <span class="count-pill" id="countPill">0 位會員</span>
+    </div>
+    <div class="actions" style="margin-bottom:12px;">
+      <button id="copyBtn">複製文字</button>
+      <button id="downloadBtn">下載 .txt 檔</button>
+    </div>
+    <textarea id="resultArea" readonly></textarea>
+  </div>
+
+  <footer>資料僅在瀏覽器本機處理，不會上傳到任何伺服器。</footer>
+</div>
+
+<script>
+let parsedRows = null;
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const genBtn = document.getElementById('genBtn');
+const statusEl = document.getElementById('status');
+const resultCard = document.getElementById('resultCard');
+const resultArea = document.getElementById('resultArea');
+const countPill = document.getElementById('countPill');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file){
+  statusEl.textContent = '';
+  statusEl.className = '';
+  if (!file.name.toLowerCase().endsWith('.csv')){
+    statusEl.textContent = '請上傳 .csv 檔案。';
+    statusEl.className = 'err';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    Papa.parse(e.target.result, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const required = ['會員','目前級別','最近狀態更新','最近狀態更新時間戳記'];
+        const cols = res.meta.fields || [];
+        const missing = required.filter(c => !cols.includes(c));
+        if (missing.length){
+          statusEl.textContent = '找不到欄位：' + missing.join('、') + '，請確認上傳的是正確的會員 CSV。';
+          statusEl.className = 'err';
+          genBtn.disabled = true;
+          genBtn.textContent = '請先上傳 CSV 檔案';
+          return;
+        }
+        parsedRows = res.data;
+        fileInfo.style.display = 'block';
+        fileInfo.textContent = `✓ 已載入「${file.name}」，共 ${parsedRows.length} 筆會員資料`;
+        genBtn.disabled = false;
+        genBtn.textContent = '產生名單';
+      },
+      error: () => {
+        statusEl.textContent = 'CSV 解析失敗，請確認檔案格式。';
+        statusEl.className = 'err';
+      }
+    });
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+const LEVEL_ORDER = ['中華民國萬萬歲 我+1', '台灣奮起 我+1', '言論自由民主制衡 我+1'];
+
+document.getElementById('genBtn').addEventListener('click', () => {
+  if (!parsedRows) return;
+  statusEl.textContent = '';
+  statusEl.className = '';
+
+  const days = parseInt(document.getElementById('daysInput').value, 10);
+  if (!days || days < 1){
+    statusEl.textContent = '請輸入有效的天數。';
+    statusEl.className = 'err';
+    return;
+  }
+  const includeRejoin = document.getElementById('includeRejoin').checked;
+  const allowedStatus = includeRejoin ? ['已加入','已重新加入'] : ['已加入'];
+
+  // 解析每筆的時間戳記 -> 轉成台北時間(UTC+8)的日期字串 yyyy-mm-dd
+  function toTaipeiDateStr(tsStr){
+    const d = new Date(tsStr);
+    if (isNaN(d.getTime())) return null;
+    const utcMs = d.getTime() + d.getTimezoneOffset()*60000;
+    const tpe = new Date(utcMs + 8*3600000);
+    const y = tpe.getFullYear();
+    const m = String(tpe.getMonth()+1).padStart(2,'0');
+    const day = String(tpe.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
+  const rows = parsedRows.map(r => {
+    const dateStr = toTaipeiDateStr(r['最近狀態更新時間戳記']);
+    const t = new Date(r['最近狀態更新時間戳記']).getTime();
+    return {...r, __date: dateStr, __t: t};
+  }).filter(r => r.__date && !isNaN(r.__t));
+
+  if (!rows.length){
+    statusEl.textContent = '無法解析任何時間戳記，請確認 CSV 內容。';
+    statusEl.className = 'err';
+    return;
+  }
+
+  // 以資料中最新的日期作為基準「今天」
+  const maxDateStr = rows.reduce((a,b) => a.__date > b.__date ? a : b).__date;
+  const maxDate = new Date(maxDateStr + 'T00:00:00');
+  const cutoff = new Date(maxDate.getTime() - (days-1)*86400000);
+
+  const filtered = rows.filter(r => {
+    const d = new Date(r.__date + 'T00:00:00');
+    return d >= cutoff && d <= maxDate && allowedStatus.includes(r['最近狀態更新']);
+  });
+
+  filtered.sort((a,b) => {
+    const la = LEVEL_ORDER.indexOf(a['目前級別']);
+    const lb = LEVEL_ORDER.indexOf(b['目前級別']);
+    const oa = la === -1 ? 999 : la;
+    const ob = lb === -1 ? 999 : lb;
+    if (oa !== ob) return oa - ob;
+    return b.__t - a.__t;
+  });
+
+  if (!filtered.length){
+    resultCard.style.display = 'block';
+    countPill.textContent = '0 位會員';
+    resultArea.value = '';
+    resultArea.style.display = 'none';
+    let note = document.getElementById('emptyNote');
+    if (!note){
+      note = document.createElement('div');
+      note.id = 'emptyNote';
+      note.className = 'empty-note';
+      resultCard.appendChild(note);
+    }
+    note.textContent = `在最近 ${days} 天（${cutoff.toISOString().slice(0,10)} ～ ${maxDateStr}）內找不到符合條件的會員。`;
+    return;
+  }
+
+  resultArea.style.display = 'block';
+  const note = document.getElementById('emptyNote');
+  if (note) note.remove();
+
+  const lines = filtered.map(r => `感謝加入中天會員||好朋友 ${r['會員']} ${r['目前級別']}`);
+  resultArea.value = lines.join('\n');
+  countPill.textContent = `${filtered.length} 位會員 · ${cutoff.toISOString().slice(0,10)} ～ ${maxDateStr}`;
+  resultCard.style.display = 'block';
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const btn = document.getElementById('copyBtn');
+  const orig = btn.textContent;
+  const flash = (msg) => { btn.textContent = msg; setTimeout(() => btn.textContent = orig, 1500); };
+
+  resultArea.focus();
+  resultArea.setSelectionRange(0, resultArea.value.length);
+
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext){
+    navigator.clipboard.writeText(resultArea.value).then(() => flash('已複製 ✓')).catch(() => {
+      try { document.execCommand('copy'); flash('已複製 ✓'); }
+      catch(e){ flash('請手動長按選取後複製'); }
+    });
+  } else {
+    try { document.execCommand('copy'); flash('已複製 ✓'); }
+    catch(e){ flash('請手動長按選取後複製'); }
+  }
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const blob = new Blob([resultArea.value], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = new Date();
+  const stamp = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+  a.href = url;
+  a.download = `最新加入會員名單_${stamp}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
